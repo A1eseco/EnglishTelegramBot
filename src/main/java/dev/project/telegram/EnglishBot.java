@@ -78,7 +78,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                     }
                 }
                 try {
-                    Thread.sleep(6000);
+                    Thread.sleep(31000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -194,14 +194,16 @@ public class EnglishBot extends TelegramLongPollingBot {
             if (s.length < 2) {
                 execute(sendMessage(client.getChatID(), "❌ *Неверный формат команды*\\. Вы не написали текст\\, который необходимо перевести\\.\n*Пример:* `/te Hello`"));
             } else {
-                execute(sendMessage(client.getChatID(), "\uD83C\uDDF7\uD83C\uDDFA *Перевод*\\: " + validator.getTranslator().translate(s[1], "en", "ru")));
+                String translated = validator.getTranslator().translate(s[1], "en", "ru").replace("!", "\\!");
+                execute(sendMessage(client.getChatID(), "\uD83C\uDDF7\uD83C\uDDFA *Перевод*\\: " + translated));
             }
         } else if (msgText.startsWith("/tr")) {
             String[] s = msgText.split(" ", 2);
             if (s.length < 2) {
                 execute(sendMessage(client.getChatID(), "❌ *Неверный формат команды*\\. Вы не написали текст\\, который необходимо перевести\\.\n*Пример:* `/tr Привет`"));
             } else {
-                execute(sendMessage(client.getChatID(), "\uD83C\uDDEC\uD83C\uDDE7 *Перевод*\\: " + validator.getTranslator().translate(s[1], "ru", "en")));
+                String translated = validator.getTranslator().translate(s[1], "ru", "en").replace("!", "\\!");
+                execute(sendMessage(client.getChatID(), "\uD83C\uDDEC\uD83C\uDDE7 *Перевод*\\: " + translated));
             }
         }
     }
@@ -338,7 +340,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                 }
             }
         });
-        commands.put("/skip", (client) -> {
+        commands.put("/stop", (client) -> {
             if (client.isDictation()) {
                 client.endDictation(directory);
                 client.setFlag();
