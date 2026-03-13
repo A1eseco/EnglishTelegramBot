@@ -1,6 +1,5 @@
 package dev.project;
 
-import dev.project.client.Client;
 import dev.project.telegram.EnglishBot;
 import dev.project.translating.WordRandomizer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;

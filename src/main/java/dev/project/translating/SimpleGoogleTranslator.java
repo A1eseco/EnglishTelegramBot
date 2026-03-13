@@ -8,12 +8,24 @@ import org.json.JSONArray;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class SimpleGoogleTranslator {
     private OkHttpClient client = new OkHttpClient();
-    
+    private static HashMap<String, String> exceptions = new HashMap<>();
+
+    public SimpleGoogleTranslator() {
+        exceptions.put("who", "кто");
+    }
+
     public String translate(String text, String sourceLang, String targetLang) {
         String encodedText = null;
+        if (text.split(" ").length < 2) text.toLowerCase();
+        if (exceptions.containsKey(text)) {
+            return exceptions.get(text);
+        }
         try {
             encodedText = URLEncoder.encode(text, "UTF-8");
         } catch (UnsupportedEncodingException e) {
@@ -26,26 +38,26 @@ public class SimpleGoogleTranslator {
                 "tl=" + targetLang + "&" +
                 "dt=t&" +
                 "q=" + encodedText;
-        
+
         Request request = new Request.Builder()
                 .url(url)
                 .get()
-                .addHeader("User-Agent", 
+                .addHeader("User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 .build();
-        
+
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 System.err.println("Ошибка HTTP: " + response.code());
             }
-            
+
             String responseBody = response.body().string();
             return parseGoogleResponse(responseBody);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-    
+
     private String parseGoogleResponse(String response) {
         try {
             JSONArray jsonArray = new JSONArray(response);
@@ -60,8 +72,5 @@ public class SimpleGoogleTranslator {
         } catch (Exception e) {
             throw new RuntimeException("Ошибка парсинга: " + response.substring(0, Math.min(100, response.length())), e);
         }
-    }
-    void main() {
-        System.out.println(translate("upon", "en", "ru"));
     }
 }
