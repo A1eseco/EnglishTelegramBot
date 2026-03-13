@@ -67,9 +67,10 @@ public class EnglishBot extends TelegramLongPollingBot {
                     for (Client client : toNotify) {
                         CompletableFuture.runAsync(() -> {
                             if (!client.isDictation()) {
-                                client.startDictation();
                                 try {
-                                    execute(sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*"));
+                                    SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
+                                    message.setReplyMarkup(createDictationModeMarkup());
+                                    execute(message);
                                 } catch (TelegramApiException e) {
                                     e.printStackTrace();
                                 }
@@ -129,18 +130,38 @@ public class EnglishBot extends TelegramLongPollingBot {
         if (update.hasCallbackQuery()) {
             CallbackQuery query = update.getCallbackQuery();
             String chatID = query.getMessage().getChatId().toString();
+            long chatIDLong = query.getMessage().getChatId();
             Integer messageId = query.getMessage().getMessageId();
+            String data = query.getData();
 
-            DeleteMessage deleteMessage = new DeleteMessage(chatID, messageId);
-            execute(deleteMessage);
-
-            SendPhoto form = sendPhoto(chatID, query.getData() + "_form.png");
-            SendPhoto use = sendPhoto(chatID, query.getData() + "_use.png");
             AnswerCallbackQuery answer = new AnswerCallbackQuery(query.getId());
-
-            execute(form);
-            execute(use);
             execute(answer);
+
+            if (data.startsWith("dictation_mode:")) {
+                String mode = data.substring("dictation_mode:".length());
+                Client client = clients.computeIfAbsent(chatIDLong,
+                        k -> new Client(chatIDLong, query.getFrom().getFirstName()));
+
+                DeleteMessage deleteMessage = new DeleteMessage(chatID, messageId);
+                execute(deleteMessage);
+
+                if (!client.isDictation()) {
+                    client.startDictation(mode);
+                    String modeLabel = "EN_TO_RU".equals(mode)
+                            ? "🇬🇧 Английский → Русский"
+                            : "🇷🇺 Русский → Английский";
+                    String word = getWordForClient(client);
+                    execute(sendMessage(chatID, "✍️ *Начало диктанта* \\(" + modeLabel + "\\)\\.\nПервое слово: *" + escapeMarkdown(word) + "*"));
+                }
+            } else {
+                DeleteMessage deleteMessage = new DeleteMessage(chatID, messageId);
+                execute(deleteMessage);
+
+                SendPhoto form = sendPhoto(chatID, data + "_form.png");
+                SendPhoto use = sendPhoto(chatID, data + "_use.png");
+                execute(form);
+                execute(use);
+            }
         }
     }
 
@@ -161,26 +182,72 @@ public class EnglishBot extends TelegramLongPollingBot {
         }
     }
 
-    private void handleDictation(String msgText, Client client) throws TelegramApiException {
-        SendMessage sendMessage;
-        if (validator.validateTranslation(client.getCurrentWord(), msgText, "ru", "en")) {
-            sendMessage = sendMessage(client.getChatID(), "✅ *Правильно, молодец\\!* 🎉");
-            client.addSolvedWord();
+    private String getWordForClient(Client client) {
+        String englishWord = client.getCurrentWord();
+        if (client.isEnToRu()) {
+            return englishWord;
         } else {
-            sendMessage = sendMessage(client.getChatID(), "❌ *Неправильно*\\.\nОдин из вариантов перевода: *"
-                    + validator.getTranslator().translate(client.getCurrentWord(), "en", "ru") + "*");
-            client.addUnsolved();
-            client.addWord();
+            return validator.getTranslator().translate(englishWord, "en", "ru");
         }
+    }
+
+    private void handleDictation(String userTranslation, Client client) throws TelegramApiException {
+        SendMessage sendMessage;
+        boolean correct;
+
+        if (client.isEnToRu()) {
+            correct = validator.validateTranslation(client.getCurrentWord(), userTranslation, "ru", "en");
+            if (correct) {
+                String straight = validator.getTranslator().translate(client.getCurrentWord(), "en", "ru");
+                if (userTranslation.toLowerCase().equals(straight.toLowerCase())) {
+                    sendMessage = sendMessage(client.getChatID(), "✅ *Правильно, молодец\\!* 🎉");
+                } else {
+                    sendMessage = sendMessage(client.getChatID(), "✅ *Правильно, молодец\\!* 🎉\nПрямой перевод слова\\: *" + escapeMarkdown(straight) + "*");
+                }
+                client.addSolvedWord();
+            } else {
+                String hint = validator.getTranslator().translate(client.getCurrentWord(), "en", "ru");
+                sendMessage = sendMessage(client.getChatID(), "❌ *Неправильно*\\.\nОдин из вариантов перевода: *" + escapeMarkdown(hint) + "*");
+                client.addUnsolved();
+                client.addWord();
+            }
+        } else {
+            String cleanUser = userTranslation.toLowerCase().trim();
+            String cleanTarget = client.getCurrentWord().toLowerCase().trim();
+            correct = cleanUser.equals(cleanTarget)
+                    || validator.validateTranslation(userTranslation, client.getCurrentWord(), "en", "en");
+            if (!correct) {
+                String userToRu = validator.getTranslator().translate(cleanUser, "en", "ru");
+                String targetToRu = validator.getTranslator().translate(cleanTarget, "en", "ru");
+                correct = userToRu.equalsIgnoreCase(targetToRu);
+            }
+            if (correct) {
+                if (cleanUser.equals(cleanTarget)) {
+                    sendMessage = sendMessage(client.getChatID(), "✅ *Правильно, молодец\\!* 🎉");
+                } else {
+                    sendMessage = sendMessage(client.getChatID(), "✅ *Правильно, молодец\\!* 🎉\nТочный ответ\\: *" + escapeMarkdown(client.getCurrentWord()) + "*");
+                }
+                client.addSolvedWord();
+            } else {
+                sendMessage = sendMessage(client.getChatID(), "❌ *Неправильно*\\.\nПравильный ответ: *" + escapeMarkdown(client.getCurrentWord()) + "*");
+                client.addUnsolved();
+                client.addWord();
+            }
+        }
+
         execute(sendMessage);
-        if (client.isDictationEnds()){
-            SendMessage send = sendMessage(client.getChatID(), ("🏁 *Диктант окончен*. \nТвой результат: *" + client.getSolvedPercentage() + "\\%* \uD83C\uDFAF").replace(".", "\\."));
+
+        if (client.isDictationEnds()) {
+            SendMessage send = sendMessage(client.getChatID(),
+                    ("🏁 *Диктант окончен*. \nТвой результат: *" + client.getSolvedPercentage() + "\\%* \uD83C\uDFAF").replace(".", "\\."));
             execute(send);
             client.endDictation(directory);
             return;
         }
+
         client.processDictation();
-        SendMessage send = sendMessage(client.getChatID(), "➡️ *Следующее слово*\\: " + client.getCurrentWord());
+        String nextWord = getWordForClient(client);
+        SendMessage send = sendMessage(client.getChatID(), "➡️ *Следующее слово*\\: *" + escapeMarkdown(nextWord) + "*");
         execute(send);
     }
 
@@ -235,6 +302,33 @@ public class EnglishBot extends TelegramLongPollingBot {
         if (minute == 0) return time.truncatedTo(ChronoUnit.HOURS);
         if (minute <= 30) return time.withMinute(30).truncatedTo(ChronoUnit.MINUTES);
         return time.plusHours(1).withMinute(0).truncatedTo(ChronoUnit.MINUTES);
+    }
+
+    private InlineKeyboardMarkup createDictationModeMarkup() {
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> row = new ArrayList<>();
+
+        InlineKeyboardButton btnEnRu = new InlineKeyboardButton();
+        btnEnRu.setText("🇬🇧 En → Ru");
+        btnEnRu.setCallbackData("dictation_mode:EN_TO_RU");
+
+        InlineKeyboardButton btnRuEn = new InlineKeyboardButton();
+        btnRuEn.setText("🇷🇺 Ru → En");
+        btnRuEn.setCallbackData("dictation_mode:RU_TO_EN");
+
+        row.add(btnEnRu);
+        row.add(btnRuEn);
+        rows.add(row);
+        markup.setKeyboard(rows);
+        return markup;
+    }
+
+    private String escapeMarkdown(String text) {
+        return text.replace("-", "\\-").replace(".", "\\.").replace("!", "\\!")
+                   .replace("(", "\\(").replace(")", "\\)").replace("|", "\\|")
+                   .replace("[", "\\[").replace("]", "\\]");
     }
 
     private InlineKeyboardMarkup createInlineMarkup() {
@@ -326,15 +420,12 @@ public class EnglishBot extends TelegramLongPollingBot {
         });
         commands.put("/dictation", (client) -> {
             if (!client.isDictation()) {
-                client.startDictation();
-                try {
-                    execute(sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*"));
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
+                SendMessage message = sendMessage(client.getChatID(), "✍️ *Выберите режим диктанта*\\:");
+                message.setReplyMarkup(createDictationModeMarkup());
+                try { execute(message); } catch (TelegramApiException e) { e.printStackTrace(); }
             } else {
                 try {
-                    execute(sendMessage(client.getChatID(), "⏳ *Диктант уже идет\\!* Текущее слово: *" + client.getCurrentWord() + "*"));
+                    execute(sendMessage(client.getChatID(), "⏳ *Диктант уже идет\\!* Текущее слово: *" + escapeMarkdown(client.getCurrentWord()) + "*"));
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }

@@ -29,6 +29,7 @@ public class Client {
     private ArrayDeque<String> unsolvedWords = new ArrayDeque<>();
     private ArrayList<String> wordBuffer = new ArrayList<>();
     private boolean flag = false;
+    private String dictationMode = "EN_TO_RU";
 
     public Client(long chatID, String firstName) {
         this.chatID = chatID;
@@ -93,6 +94,19 @@ public class Client {
         state = ClientState.DICTATION;
         stage++;
         if (!flag) updateWord();
+    }
+
+    public void startDictation(String mode) {
+        this.dictationMode = mode;
+        startDictation();
+    }
+
+    public String getDictationMode() {
+        return dictationMode;
+    }
+
+    public boolean isEnToRu() {
+        return "EN_TO_RU".equals(dictationMode);
     }
     public void updateWord() {
         if (!unsolvedWords.isEmpty()) {
