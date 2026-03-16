@@ -76,7 +76,6 @@ public class EnglishBot extends TelegramLongPollingBot {
                     for (Client client : toNotify) {
                         CompletableFuture.runAsync(() -> {
                             if (!client.isDictation()) {
-                                client.startDictation(client.getDictationMode());
                                 try {
                                     SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
                                     message.setReplyMarkup(createDictationModeMarkup());
