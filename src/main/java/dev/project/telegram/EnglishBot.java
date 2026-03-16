@@ -67,7 +67,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                 if (clientsTimes.containsKey(currentTimeStr)) {
                     List<Client> toNotify = new ArrayList<>(clientsTimes.get(now));
                     for (Client client : toNotify) {
-                        CompletableFuture.runAsync(() -> {
+                        new Thread(() -> {
                             if (!client.isDictation()) {
                                 try {
                                     SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
@@ -77,7 +77,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                                     e.printStackTrace();
                                 }
                             }
-                        });
+                        }).start();
                     }
                 }
                 try {
