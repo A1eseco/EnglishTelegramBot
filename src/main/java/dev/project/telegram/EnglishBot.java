@@ -21,6 +21,8 @@ import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -60,9 +62,9 @@ public class EnglishBot extends TelegramLongPollingBot {
     private void startTimeThread() {
         timeThread = new Thread(() -> {
             while (isRunning) {
-                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
-                String now = sdf.format(new Date());
-                if (clientsTimes.containsKey(now)) {
+                LocalTime now = LocalTime.now(ZoneId.of("Europe/Moscow"));
+                String currentTimeStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+                if (clientsTimes.containsKey(currentTimeStr)) {
                     List<Client> toNotify = new ArrayList<>(clientsTimes.get(now));
                     for (Client client : toNotify) {
                         CompletableFuture.runAsync(() -> {
@@ -293,6 +295,7 @@ public class EnglishBot extends TelegramLongPollingBot {
             addClientToTimeMap(time, client);
             execute(message);
         } else {
+            LocalTime now = LocalTime.now(ZoneId.of("Europe/Moscow"));
             execute(sendMessage(client.getChatID(), "⏰ *Укажите время* в формате: `/time " + roundToNext30Minutes(LocalTime.parse(nowStr)) + "` \\(МСК\\)\\."));
         }
     }
