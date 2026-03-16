@@ -63,25 +63,34 @@ public class EnglishBot extends TelegramLongPollingBot {
     }
 
     private void startTimeThread() {
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
-        long delay = 60 - LocalTime.now().getSecond();
-
-        scheduler.scheduleAtFixedRate(() -> {
-            String now = new SimpleDateFormat("HH:mm").format(new Date());
-            List<Client> toNotify = clientsTimes.getOrDefault(now, Collections.emptyList());
-            for (Client client : new ArrayList<>(toNotify)) {
-                if (!client.isDictation()) {
-                    try {
-                        SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
-                        message.setReplyMarkup(createDictationModeMarkup());
-                        execute(message);
-                    } catch (TelegramApiException e) {
-                        e.printStackTrace();
+        timeThread = new Thread(() -> {
+            while (isRunning) {
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
+                String now = sdf.format(new Date());
+                if (clientsTimes.containsKey(now)) {
+                    List<Client> toNotify = new ArrayList<>(clientsTimes.get(now));
+                    for (Client client : toNotify) {
+                        CompletableFuture.runAsync(() -> {
+                            if (!client.isDictation()) {
+                                client.startDictation();
+                                try {
+                                    execute(sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*"));
+                                } catch (TelegramApiException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
                     }
                 }
+                try {
+                    Thread.sleep(6000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
-        }, delay, 60, TimeUnit.SECONDS);
+        });
+        timeThread.start();
     }
 
     private void addClientToTimeMap(String time, Client client) {
@@ -288,7 +297,6 @@ public class EnglishBot extends TelegramLongPollingBot {
             addClientToTimeMap(time, client);
             execute(message);
         } else {
-            LocalTime now = LocalTime.now(ZoneId.of("Europe/Moscow"));
             execute(sendMessage(client.getChatID(), "⏰ *Укажите время* в формате: `/time " + roundToNext30Minutes(LocalTime.parse(nowStr)) + "` \\(МСК\\)\\."));
         }
     }
