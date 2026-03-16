@@ -65,7 +65,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                 LocalTime now = LocalTime.now(ZoneId.of("Europe/Moscow"));
                 String currentTimeStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
                 if (clientsTimes.containsKey(currentTimeStr)) {
-                    List<Client> toNotify = new ArrayList<>(clientsTimes.get(now));
+                    List<Client> toNotify = new ArrayList<>(clientsTimes.get(currentTimeStr));
                     for (Client client : toNotify) {
                         new Thread(() -> {
                             if (!client.isDictation()) {
