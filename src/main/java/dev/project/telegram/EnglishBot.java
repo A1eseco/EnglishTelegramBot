@@ -26,6 +26,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class EnglishBot extends TelegramLongPollingBot {
@@ -60,35 +63,25 @@ public class EnglishBot extends TelegramLongPollingBot {
     }
 
     private void startTimeThread() {
-        timeThread = new Thread(() -> {
-            while (isRunning) {
-                LocalTime now = LocalTime.now(ZoneId.of("Europe/Moscow"));
-                String currentTimeStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-                if (clientsTimes.containsKey(currentTimeStr)) {
-                    List<Client> toNotify = new ArrayList<>(clientsTimes.get("18:17"));
-                    for (Client client : toNotify) {
-                        new Thread(() -> {
-                            if (!client.isDictation()) {
-                                try {
-                                    SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
-                                    message.setReplyMarkup(createDictationModeMarkup());
-                                    execute(message);
-                                } catch (TelegramApiException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }).start();
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        long delay = 60 - LocalTime.now().getSecond();
+
+        scheduler.scheduleAtFixedRate(() -> {
+            String now = new SimpleDateFormat("HH:mm").format(new Date());
+            List<Client> toNotify = clientsTimes.getOrDefault(now, Collections.emptyList());
+            for (Client client : new ArrayList<>(toNotify)) {
+                if (!client.isDictation()) {
+                    try {
+                        SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
+                        message.setReplyMarkup(createDictationModeMarkup());
+                        execute(message);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
                     }
                 }
-                try {
-                    Thread.sleep(31000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
             }
-        });
-        timeThread.start();
+        }, delay, 60, TimeUnit.SECONDS);
     }
 
     private void addClientToTimeMap(String time, Client client) {

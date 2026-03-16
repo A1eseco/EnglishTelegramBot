@@ -1,8 +1,10 @@
 package dev.project;
 
+import dev.project.client.Client;
 import dev.project.telegram.EnglishBot;
 import dev.project.translating.WordRandomizer;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
@@ -13,6 +15,9 @@ import java.awt.event.ActionListener;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class Main {
     private static EnglishBot englishBot;
