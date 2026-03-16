@@ -22,6 +22,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -65,17 +66,22 @@ public class EnglishBot extends TelegramLongPollingBot {
     private void startTimeThread() {
         timeThread = new Thread(() -> {
             while (isRunning) {
-                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm");
-                String now = sdf.format(new Date());
+                ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("Europe/Moscow"));
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+                String now = zonedDateTime.format(formatter);
+                System.out.println(now);
                 if (clientsTimes.containsKey(now)) {
+                    System.out.println("contains");
                     List<Client> toNotify = new ArrayList<>(clientsTimes.get(now));
                     for (Client client : toNotify) {
                         CompletableFuture.runAsync(() -> {
                             if (!client.isDictation()) {
                                 client.startDictation();
+                                System.out.println("aaaa");
                                 try {
                                     execute(sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*"));
-                                } catch (TelegramApiException e) {
+                                }
+                                catch (TelegramApiException e) {
                                     e.printStackTrace();
                                 }
                             }
