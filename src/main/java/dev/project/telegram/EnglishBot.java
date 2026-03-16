@@ -77,9 +77,10 @@ public class EnglishBot extends TelegramLongPollingBot {
                         CompletableFuture.runAsync(() -> {
                             if (!client.isDictation()) {
                                 client.startDictation();
-                                System.out.println("aaaa");
                                 try {
-                                    execute(sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*"));
+                                    SendMessage message = sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*");
+                                    message.setReplyMarkup(createDictationModeMarkup());
+                                    execute(message);
                                 }
                                 catch (TelegramApiException e) {
                                     e.printStackTrace();
