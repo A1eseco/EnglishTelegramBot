@@ -23,7 +23,7 @@ public class Client {
     private int dictationWords = 10;
     private int currentSolvedWords = 0;
     private String currentWord;
-    private int wordID = 0;
+    private int wordID = 90;
     private int stage = 0;
     private ClientState state;
     private ArrayDeque<String> unsolvedWords = new ArrayDeque<>();
