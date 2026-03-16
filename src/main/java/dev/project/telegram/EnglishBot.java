@@ -78,7 +78,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                             if (!client.isDictation()) {
                                 client.startDictation();
                                 try {
-                                    SendMessage message = sendMessage(client.getChatID(), "✍️ *Начало диктанта*\\.\nПервое слово: *" + client.getCurrentWord() + "*");
+                                    SendMessage message = sendMessage(client.getChatID(), "✍️ *Время для диктанта\\!* Выберите режим\\:");
                                     message.setReplyMarkup(createDictationModeMarkup());
                                     execute(message);
                                 }
@@ -90,7 +90,7 @@ public class EnglishBot extends TelegramLongPollingBot {
                     }
                 }
                 try {
-                    Thread.sleep(6000);
+                    Thread.sleep(31000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
